@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Based Music Player</title>
+    <style>
+        * 
+        {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body 
+        {
+            font-family: 'Arial', sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        h1 
+        {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        #emotion-display 
+        {
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #emotion 
+        {
+            color: #FF5733; /* Emotion color */
+        }
+
+        #video-container 
+        {
+            margin-bottom: 20px;
+        }
+
+        #video 
+        {
+            border: 3px solid #333;
+            border-radius: 8px;
+        }
+
+        audio 
+        {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 600px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+
+        @media (max-width: 768px) 
+        {
+            body 
+            {
+                padding: 20px;
+            }
+
+            h1 
+            {
+                font-size: 2rem;
+            }
+
+            #video 
+            {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            audio 
+            {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Emotion-based Music Player</h1>
+    <div id="emotion-display">
+        <h2>Emotion: <span id="emotion">None</span></h2>
+    </div>
+    <div id="video-container">
+        <img id="video" src="" width="640" height="480" />
+    </div>
+    <audio id="audio-player" controls autoplay>
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        // Connect to the /video_feed route to display the webcam feed
+        const videoElement = document.getElementById("video");
+        const emotionElement = document.getElementById("emotion");
+        const audioPlayer = document.getElementById("audio-player");
+    
+        // Fetch the video feed from Flask
+        videoElement.src = "/video_feed";
+    
+        // Flag to determine if the music is currently playing
+        let isMusicPlaying = false;
+    
+        // Function to fetch and update the song based on detected emotion
+        function updateSong() {
+            fetch("/get_song")
+                .then(response => response.json())
+                .then(data => {
+                    // Update the emotion text on the page
+                    emotionElement.textContent = data.emotion;
+    
+                    // If a song is returned, set the source for the audio player and play it
+                    if (data.song_path) {
+                        // Set the new song source
+                        audioPlayer.src = `/static/music/${data.song_path}`;
+    
+                        // Wait until the audio element is ready and then play it
+                        audioPlayer.load();  // Ensure the audio element loads the new source
+                        audioPlayer.play().catch(error => {
+                            console.error("Audio play failed:", error);
+                            // Audio play failed (maybe due to autoplay restrictions), notify user
+                        });
+                    }
+                })
+                .catch(error => console.error("Error fetching song:", error));
+        }
+    
+        // Check emotion every 1 second when music starts
+        function startMusicCheck() {
+            setInterval(() => {
+                if (!isMusicPlaying) {
+                    updateSong();  // Only update song if music is not already playing
+                }
+            }, 1000);  // Check every 1 second when music is playing
+        }
+    
+        // Event listener to detect when the song finishes playing
+        audioPlayer.addEventListener('ended', function() {
+            // When the song finishes, set isMusicPlaying to false and update the song
+            isMusicPlaying = false;
+            updateSong();  // Fetch the next song based on current emotion
+        });
+    
+        // Initial fetch to start the process
+        audioPlayer.addEventListener('play', function() {
+            if (!isMusicPlaying) {
+                isMusicPlaying = true;
+                startMusicCheck();  // Start the 1-second checks when music starts
+            }
+        });
+    
+        // Ensure music is checked and played when page loads
+        window.addEventListener('load', function() {
+            updateSong();  // Fetch the first song on page load
+        });
+    </script>
+    
+</body>
+</html>
